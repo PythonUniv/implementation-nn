@@ -1,2 +1,2 @@
-# Implementation of GPT-2 from scratch
-### Mostly inspired by implementation of Andrej Karpathy
+# Implementation of GPT-2 from scratch.
+### Mostly inspired by implementation Andrej Karpathy's nanogpt
