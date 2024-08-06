@@ -212,6 +212,9 @@ def train(
             tokens = torch.tensor(tokenized['input_ids'], dtype=torch.long, device=device)
             attention_mask = torch.tensor(tokenized['attention_mask'], dtype=torch.long, device=device)         
             
+            print(tokens.dtype)
+            print(attention_mask.dtype)
+            
             output = model(processed_images, tokens, attention_mask)
 
             image_proj = output['image_proj']
