@@ -205,7 +205,7 @@ def train(
             optimizer.zero_grad()
             
             images = batch['image']
-            processed_images = model.vision_encoder.image_processor(images)['pixel_values'].to(device)
+            processed_images = model.vision_encoder.image_processor(images, do_rescale=False)['pixel_values'].to(device)
             captions = batch['caption']
             
             tokenized = model.text_encoder.tokenizer(captions, padding=True)
@@ -259,7 +259,7 @@ def train(
                     model.eval()
                     for batch in tqdm_iter:
                         images = batch['image']
-                        images = images.to(device)
+                        processed_images = model.vision_encoder.image_processor(images, do_rescale=False)['pixel_values'].to(device)
                         
                         captions = batch['captions']
                         tokenized = model.text_encoder.tokenizer(captions, padding=True)

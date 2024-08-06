@@ -1,13 +1,14 @@
 import random
 from torch.utils.data import Dataset, DataLoader
 from datasets import load_dataset
-from typing import Callable
 from datasets import DatasetDict
+from torchvision.transforms import ToTensor
 
 
 class ImageCaptionDataset(Dataset):
     def __init__(self, dataset: DatasetDict):
         self.dataset = dataset
+        self.to_tensor = ToTensor()
     
     def __len__(self):
         return len(self.dataset)
@@ -15,7 +16,7 @@ class ImageCaptionDataset(Dataset):
     def __getitem__(self, index: int):
         return {
             'caption': random.choice(self.dataset[index]['caption']),
-            'image': self.dataset[index]['image']
+            'image': self.to_tensor(self.dataset[index]['image'])
         }
     
 
