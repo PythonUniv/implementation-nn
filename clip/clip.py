@@ -209,8 +209,8 @@ def train(
             captions = batch['caption']
             
             tokenized = model.text_encoder.tokenizer(captions, padding=True)
-            tokens = torch.tensor(tokenized['input_ids'], device=device)
-            attention_mask = torch.tensor(tokenized['attention_mask'], device=device)         
+            tokens = torch.tensor(tokenized['input_ids'], dtype=torch.long, device=device)
+            attention_mask = torch.tensor(tokenized['attention_mask'], dtype=torch.long, device=device)         
             
             output = model(processed_images, tokens, attention_mask)
 
@@ -264,8 +264,8 @@ def train(
                         captions = batch['captions']
                         tokenized = model.text_encoder.tokenizer(captions, padding=True)
                         
-                        tokens = torch.tensor(tokenized['input_ids'], device=device)
-                        attention_mask = torch.tensor(tokenized['attention_mask'], device=device)
+                        tokens = torch.tensor(tokenized['input_ids'], dtype=torch.long, device=device)
+                        attention_mask = torch.tensor(tokenized['attention_mask'], dtype=torch.long, device=device)
                         
                         output = model(tokens, images, attention_mask)
                         
