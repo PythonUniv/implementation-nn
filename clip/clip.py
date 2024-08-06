@@ -214,8 +214,8 @@ def train(
             
             output = model(tokens, processed_images, attention_mask)
 
-            image_proj = output['image_proj']
-            image_similarity = image_proj @ image_proj.T
+            vision_proj = output['vision_proj']
+            image_similarity = vision_proj @ vision_proj.T
             
             text_proj = output['text_proj']
             text_similarity = text_proj @ text_proj.T
