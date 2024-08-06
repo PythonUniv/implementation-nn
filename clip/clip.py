@@ -3,11 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import DistilBertModel, DistilBertConfig, AutoTokenizer
-from torchvision.models import vit_b_16, ViT_B_16_Weights
-from torchvision.io import read_image
+from transformers import ViTModel, ViTConfig, AutoImageProcessor
 from torch.utils.data import DataLoader
 from itertools import chain
 from tqdm import tqdm
+from PIL import Image
 
 
 class DistilBertEncoder(nn.Module):
@@ -34,20 +34,21 @@ class DistilBertEncoder(nn.Module):
     
     
 class VisionTransformerEncoder(nn.Module):
-    def __init__(self, pretrained: bool = True):
+    def __init__(self, config: ViTConfig | None = None):
         super().__init__()
         
-        if pretrained:
-            self.model = vit_b_16(weights=ViT_B_16_Weights.IMAGENET1K_V1)
+        if config is None:
+            self.model = ViTModel.from_pretrained('google/vit-base-patch16-224')
         else:
-            self.model = vit_b_16()
-        self.transforms = ViT_B_16_Weights.transforms
+            self.model = ViTModel(config)
+        self.image_processor = AutoImageProcessor.from_pretrained('google/vit-base-patch16-224', use_fast=True)
         
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.model(x)
-        return x[:, 0]
-    
-
+    def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
+        x = self.model(pixel_values=pixel_values).last_hidden_state
+        x = x[:, 0]
+        return x
+        
+        
 class CLIPProjection(nn.Module):
     def __init__(self, in_dim: int, out_dim: int, dropout: float = 0):
         self.fc_1 = nn.Linear(in_dim, out_dim)
@@ -84,8 +85,8 @@ class CLIP(nn.Module):
         self, tokens: torch.Tensor, images: torch.Tensor,
         attention_mask: torch.Tensor | None = None
     ) -> dict:
-        text_encoded = self.text_encoder(tokens, attention_mask)
-        image_encoded = self.vision_encoder(images)
+        text_encoded = self.text_encoder(tokens, attention_mask).last_hidden_state
+        image_encoded = self.vision_encoder(pixel_values=images)
 
         text_proj = self.text_proj(text_encoded)
         vision_proj = self.vision_proj(image_encoded)
@@ -103,19 +104,63 @@ class CLIPInference:
         Wrapper CLIP model for inference.
     """
     
-    def __init__(self, clip: CLIP):
+    def __init__(self, clip: CLIP, device: torch.DeviceObjType):
         self.clip = clip
-    
+        self.device = device
+        self.clip.to(device=device)
+        self.clip.eval()
+            
     @staticmethod
     def from_pretrained(path: str) -> 'CLIPInference':
         clip = torch.load(path)
         return clip
     
-    def preprocess_image(self, path: str) -> torch.Tensor:
-        image = read_image(path)
-        image = self.clip.vision_encoder.transforms(image)
-        return image
+    def preprocess_image(self, images: torch.Tensor) -> torch.Tensor:
+        processed = self.clip.vision_encoder.image_processor(images)['pixel_values']
+        return processed
     
+    @torch.no_grad
+    def __call__(
+        self, text: str | list[str] | None = None, images: list[str] | torch.Tensor | None = None,
+        batch_size: int = 1, *, text_proj: torch.Tensor | None = None, image_proj: torch.Tensor | None = None
+    ) -> tuple[list, list]:
+        
+        sim_size = (1 if isinstance(text, str) else len(text), len(images))
+        similarity = torch.empty(size=sim_size, dtype=torch.float16, device=self.device)
+        
+        if text_proj is None:
+            if isinstance(text, str):
+                text = [text]
+            tokenized = self.clip.text_encoder.tokenizer(text, padding=True)
+            tokens = torch.tensor(tokenized['input_ids'], dtype=torch.long, device=self.device)
+            attention_mask = torch.tensor(tokenized['attention_mask'], dtype=torch.long, device=self.device)
+            text_encoded = self.clip.text_encoder(tokens, attention_mask)
+            text_proj = self.clip.text_proj(text_encoded)
+        
+        if image_proj is None:
+            image_encoded = self.clip.vision_encoder()
+            
+            for idx in range(0, len(images), batch_size):
+                if isinstance(images[0], str):
+                    images_batch = self.read_images(images[idx: idx + batch_size])
+                else:
+                    images_batch = images[idx: idx + batch_size]
+                processed = self.preprocess_image(images_batch)
+                image_encoded = self.clip.vision_encoder(processed)
+                vision_proj = self.clip.vision_proj(image_encoded)
+
+                similarity[:, idx: idx + batch_size] = text_proj @ vision_proj.T
+        else:
+            similarity = text_proj @ image_proj.T
+        similarity = similarity.softmax(dim=-1).detach()
+        
+        ids = similarity.argsort(dim=-1)
+        return similarity.tolist(), ids.tolist()
+    
+    @staticmethod
+    def read_images(images: list[str]) -> list[Image.Image]:
+        return [Image.open(path) for path in images]
+
 
 def cross_entropy(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     loss = (-targets * F.log_softmax(preds)).sum(1)
@@ -127,7 +172,6 @@ def train(
     epochs: int = 1, lr: float = 1e-3, temperature: float = 1,
     neptune_run=None, device='cuda', logging_file: str = 'logs', checkpoint_dir: str | None = None
 ) -> CLIP:
-    
     model.to(device)
     
     if neptune_run is not None:
@@ -158,14 +202,15 @@ def train(
         for idx, batch in enumerate(tqdm_iter):
             optimizer.zero_grad()
             
-            images = batch['image'].to(device)
+            images = batch['image']
+            processed_images = model.vision_encoder.image_processor(images)['pixel_values'].to(device)
             captions = batch['caption']
             
             tokenized = model.text_encoder.tokenizer(captions, padding=True)
             tokens = torch.tensor(tokenized['input_ids'], device=device)
             attention_mask = torch.tensor(tokenized['attention_mask'], device=device)         
             
-            output = model(images, tokens, attention_mask)
+            output = model(processed_images, tokens, attention_mask)
 
             image_proj = output['image_proj']
             image_similarity = image_proj @ image_proj.T
