@@ -215,7 +215,7 @@ def train(
             print(tokens.dtype)
             print(attention_mask.dtype)
             
-            output = model(processed_images, tokens, attention_mask)
+            output = model(tokens, processed_images, attention_mask)
 
             image_proj = output['image_proj']
             image_similarity = image_proj @ image_proj.T
