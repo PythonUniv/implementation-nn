@@ -218,6 +218,8 @@ def train(
             image_similarity = vision_proj @ vision_proj.T
             
             text_proj = output['text_proj']
+            print(text_proj.shape)
+            
             text_similarity = text_proj @ text_proj.T
             
             targets = F.softmax((image_similarity + text_similarity) / 2 * temperature, dim=-1)
