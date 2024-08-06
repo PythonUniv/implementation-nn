@@ -196,6 +196,7 @@ def train(
     
     checkpoint_dir = checkpoint_dir or os.path.join(os.path.dirname(__file__), 'checkpoints')
     
+    best_loss = None
     for epoch in range(epochs):
         print(f'Epoch: {epoch}')
         model.train()
@@ -253,46 +254,45 @@ def train(
                 neptune_run['train/vision_encoder_lr'].append(vision_encoder_lr)
                 neptune_run['train/projection_lr'].append(proj_lr)
 
-            best_loss = None
-            if val_loader is not None:
-                tqdm_iter = tqdm(val_loader)
-                losses = []
-                with torch.no_grad():
-                    model.eval()
-                    for batch in tqdm_iter:
-                        images = batch['image']
-                        processed_images = model.vision_encoder.image_processor(images, do_rescale=False)['pixel_values'].to(device)
-                        
-                        captions = batch['caption']
-                        tokenized = model.text_encoder.tokenizer(captions, padding=True)
-                        
-                        tokens = torch.tensor(tokenized['input_ids'], dtype=torch.long, device=device)
-                        attention_mask = torch.tensor(tokenized['attention_mask'], dtype=torch.long, device=device)
-                        
-                        output = model(tokens, processed_images, attention_mask)
-                        
-                        vision_proj = output['vision_proj']
-                        image_similarity = vision_proj @ vision_proj.T
-                        
-                        text_proj = output['text_proj']
-                        text_similarity = text_proj @ text_proj.T
-                        
-                        targets = F.softmax((image_similarity + text_similarity) / 2, dim=-1)
-                        
-                        similarity = output['similarity']
+        if val_loader is not None:
+            tqdm_iter = tqdm(val_loader)
+            losses = []
+            with torch.no_grad():
+                model.eval()
+                for batch in tqdm_iter:
+                    images = batch['image']
+                    processed_images = model.vision_encoder.image_processor(images, do_rescale=False)['pixel_values'].to(device)
+                    
+                    captions = batch['caption']
+                    tokenized = model.text_encoder.tokenizer(captions, padding=True)
+                    
+                    tokens = torch.tensor(tokenized['input_ids'], dtype=torch.long, device=device)
+                    attention_mask = torch.tensor(tokenized['attention_mask'], dtype=torch.long, device=device)
+                    
+                    output = model(tokens, processed_images, attention_mask)
+                    
+                    vision_proj = output['vision_proj']
+                    image_similarity = vision_proj @ vision_proj.T
+                    
+                    text_proj = output['text_proj']
+                    text_similarity = text_proj @ text_proj.T
+                    
+                    targets = F.softmax((image_similarity + text_similarity) / 2, dim=-1)
+                    
+                    similarity = output['similarity']
 
-                        loss = (cross_entropy(similarity, targets).mean() + cross_entropy(similarity.T, targets).mean()) / 2
-                        losses.append(loss.item())
-                        
-                        average_loss = sum(losses) / len(losses)
-                        
-                        tqdm_iter.set_description(f'Loss: {loss.item():.3f} | Average loss: {average_loss:.3f}')
+                    loss = (cross_entropy(similarity, targets).mean() + cross_entropy(similarity.T, targets).mean()) / 2
+                    losses.append(loss.item())
+                    
+                    average_loss = sum(losses) / len(losses)
+                    
+                    tqdm_iter.set_description(f'Loss: {loss.item():.3f} | Average loss: {average_loss:.3f}')
 
-                        with open(logging_file, '+a') as file:
-                            file.write(f'Validation | Loss: {loss.item():.3f} | Average loss: {average_loss:.3f}\n')
-                        
-                        if neptune_run is not None:
-                            neptune_run['val/loss'].append(loss.item())
+                    with open(logging_file, '+a') as file:
+                        file.write(f'Validation | Loss: {loss.item():.3f} | Average loss: {average_loss:.3f}\n')
+                    
+                    if neptune_run is not None:
+                        neptune_run['val/loss'].append(loss.item())
                             
                 average_loss = sum(losses) / len(losses)
                 if best_loss is None or average_loss < best_loss:
