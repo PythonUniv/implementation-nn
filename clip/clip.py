@@ -51,6 +51,8 @@ class VisionTransformerEncoder(nn.Module):
         
 class CLIPProjection(nn.Module):
     def __init__(self, in_dim: int, out_dim: int, dropout: float = 0):
+        super().__init__()
+        
         self.fc_1 = nn.Linear(in_dim, out_dim)
         self.fc_2 = nn.Linear(out_dim, out_dim)
         self.gelu = nn.GELU()
