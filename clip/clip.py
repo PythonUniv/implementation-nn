@@ -270,7 +270,7 @@ def train(
                         tokens = torch.tensor(tokenized['input_ids'], dtype=torch.long, device=device)
                         attention_mask = torch.tensor(tokenized['attention_mask'], dtype=torch.long, device=device)
                         
-                        output = model(tokens, images, attention_mask)
+                        output = model(tokens, processed_images, attention_mask)
                         
                         vision_proj = output['vision_proj']
                         image_similarity = vision_proj @ vision_proj.T
