@@ -219,7 +219,6 @@ def train(
             image_similarity = vision_proj @ vision_proj.T
             
             text_proj = output['text_proj']
-            print(text_proj.shape)
             
             text_similarity = text_proj @ text_proj.T
             
@@ -228,7 +227,7 @@ def train(
             
             similarity = output['similarity']
             
-            loss = (cross_entropy(similarity, targets).sum() + cross_entropy(similarity.T, targets).sum()) / 2
+            loss = (cross_entropy(similarity, targets).mean() + cross_entropy(similarity.T, targets).mean()) / 2
             loss.backward()
         
             optimizer.step()
@@ -282,7 +281,7 @@ def train(
                         
                         similarity = output['similarity']
 
-                        loss = (cross_entropy(similarity, targets) + cross_entropy(similarity.T, targets)) / 2
+                        loss = (cross_entropy(similarity, targets).mean() + cross_entropy(similarity.T, targets).mean()) / 2
                         losses.append(loss.item())
                         
                         average_loss = sum(losses) / len(losses)
