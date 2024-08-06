@@ -29,7 +29,8 @@ class DistilBertEncoder(nn.Module):
     def forward(
         self, x: torch.Tensor, attention_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
-        x = self.model(x, attention_mask)
+        x = self.model(x, attention_mask).last_hidden_state
+        x = x[:, 0]
         return x
     
     
