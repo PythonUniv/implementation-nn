@@ -6,7 +6,7 @@ from datasets import DatasetDict
 
 
 class ImageCaptionDataset(Dataset):
-    def __init__(self, dataset: DatasetDict, transforms: Callable):
+    def __init__(self, dataset: DatasetDict):
         self.dataset = dataset
     
     def __len__(self):
