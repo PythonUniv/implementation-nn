@@ -13,9 +13,9 @@ if __name__ == '__main__':
         text_encoder_dim=768, vision_encoder_dim=768, proj_dim=256)
     
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument('-batch_size', default=128)
-    argument_parser.add_argument('-num_workers', default=0)
-    argument_parser.add_argument('-epochs', default=1)
+    argument_parser.add_argument('-batch_size', default=128, type=int)
+    argument_parser.add_argument('-num_workers', default=0, type=int)
+    argument_parser.add_argument('-epochs', default=1, type=int)
     arguments = argument_parser.parse_args()
     
     train_loader, val_loader = get_data_loaders(batch_size=arguments.batch_size, num_workers=arguments.num_workers)
