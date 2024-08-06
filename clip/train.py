@@ -1,5 +1,5 @@
-from .clip import DistilBertEncoder, VisionTransformerEncoder, CLIP, train
-from .dataset import get_data_loaders
+from clip import DistilBertEncoder, VisionTransformerEncoder, CLIP, train
+from dataset import get_data_loaders
 
 
 if __name__ == '__main__':
