@@ -166,7 +166,7 @@ class CLIPInference:
 
 
 def cross_entropy(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-    loss = (-targets * F.log_softmax(preds)).sum(1)
+    loss = (-targets * F.log_softmax(preds, dim=-1)).sum(1)
     return loss
 
 
@@ -264,7 +264,7 @@ def train(
                         images = batch['image']
                         processed_images = model.vision_encoder.image_processor(images, do_rescale=False)['pixel_values'].to(device)
                         
-                        captions = batch['captions']
+                        captions = batch['caption']
                         tokenized = model.text_encoder.tokenizer(captions, padding=True)
                         
                         tokens = torch.tensor(tokenized['input_ids'], dtype=torch.long, device=device)
@@ -272,8 +272,8 @@ def train(
                         
                         output = model(tokens, images, attention_mask)
                         
-                        image_proj = output['image_proj']
-                        image_similarity = image_proj @ image_proj.T
+                        vision_proj = output['vision_proj']
+                        image_similarity = vision_proj @ vision_proj.T
                         
                         text_proj = output['text_proj']
                         text_similarity = text_proj @ text_proj.T
