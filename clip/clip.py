@@ -88,7 +88,7 @@ class CLIP(nn.Module):
         self, tokens: torch.Tensor, images: torch.Tensor,
         attention_mask: torch.Tensor | None = None
     ) -> dict:
-        text_encoded = self.text_encoder(tokens, attention_mask).last_hidden_state
+        text_encoded = self.text_encoder(tokens, attention_mask)
         image_encoded = self.vision_encoder(pixel_values=images)
 
         text_proj = self.text_proj(text_encoded)
