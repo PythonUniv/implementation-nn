@@ -18,11 +18,21 @@ if __name__ == '__main__':
     argument_parser.add_argument('-batch_size', default=128, type=int)
     argument_parser.add_argument('-num_workers', default=0, type=int)
     argument_parser.add_argument('-epochs', default=1, type=int)
+    argument_parser.add_argument('-checkpoint_dir', default=None)
+    argument_parser.add_argument('-neptune_api_key', default=None)
+    argument_parser.add_argument('-project', default=None)
+    
     arguments = argument_parser.parse_args()
     
     print(f'Training CLIP with summary number of parameters: {sum(parameter.numel() for parameter in clip.parameters()):,}')
     print(f'Number of trainable parameters: {sum(parameter.numel() for parameter in clip.parameters() if parameter.requires_grad):,}')
     
+    if argument_parser.neptune_api_key is not None and argument_parser.project is not None:
+        import neptune
+        neptune_run = neptune.init_run(project=argument_parser.project, api_token=argument_parser.neptune_api_key)
+    else:
+        neptune_run = None
+    
     train_loader, val_loader = get_data_loaders(batch_size=arguments.batch_size, num_workers=arguments.num_workers)
     
-    train(clip, train_loader, val_loader, epochs=arguments.epochs)
+    train(clip, train_loader, val_loader, epochs=arguments.epochs, neptune_run=neptune_run, checkpoint_dir=argument_parser.checkpoint_dir)
