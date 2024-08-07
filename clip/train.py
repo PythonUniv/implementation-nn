@@ -27,12 +27,12 @@ if __name__ == '__main__':
     print(f'Training CLIP with summary number of parameters: {sum(parameter.numel() for parameter in clip.parameters()):,}')
     print(f'Number of trainable parameters: {sum(parameter.numel() for parameter in clip.parameters() if parameter.requires_grad):,}')
     
-    if argument_parser.neptune_api_key is not None and argument_parser.project is not None:
+    if arguments.neptune_api_key is not None and arguments.project is not None:
         import neptune
-        neptune_run = neptune.init_run(project=argument_parser.project, api_token=argument_parser.neptune_api_key)
+        neptune_run = neptune.init_run(project=arguments.project, api_token=arguments.neptune_api_key)
     else:
         neptune_run = None
     
     train_loader, val_loader = get_data_loaders(batch_size=arguments.batch_size, num_workers=arguments.num_workers)
     
-    train(clip, train_loader, val_loader, epochs=arguments.epochs, neptune_run=neptune_run, checkpoint_dir=argument_parser.checkpoint_dir)
+    train(clip, train_loader, val_loader, epochs=arguments.epochs, neptune_run=neptune_run, checkpoint_dir=arguments.checkpoint_dir)
