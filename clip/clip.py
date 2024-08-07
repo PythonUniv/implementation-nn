@@ -192,7 +192,7 @@ def train(
     ]
     optimizer = torch.optim.AdamW(params, weight_decay=0.001, fused=True)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer, lr, epochs=epochs, steps_per_epoch=len(train_loader))
+        optimizer, [1e-5, 1e-5, lr], epochs=epochs, steps_per_epoch=len(train_loader))
     
     checkpoint_dir = checkpoint_dir or os.path.join(os.path.dirname(__file__), 'checkpoints')
     
