@@ -12,11 +12,16 @@ if __name__ == '__main__':
         distil_bert_encoder, vision_transformer_encoder,
         text_encoder_dim=768, vision_encoder_dim=768, proj_dim=256)
     
+    clip.compile()
+    
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument('-batch_size', default=128, type=int)
     argument_parser.add_argument('-num_workers', default=0, type=int)
     argument_parser.add_argument('-epochs', default=1, type=int)
     arguments = argument_parser.parse_args()
+    
+    print(f'Training CLIP with summary number of parameters: {sum(parameter.numel() for parameter in clip.parameters()):,}')
+    print(f'Number of trainable parameters: {sum(parameter.numel() for parameter in clip.parameters() if parameter.requires_grad):,}')
     
     train_loader, val_loader = get_data_loaders(batch_size=arguments.batch_size, num_workers=arguments.num_workers)
     
