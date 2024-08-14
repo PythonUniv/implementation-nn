@@ -12,7 +12,6 @@ if __name__ == '__main__':
     argument_parser.add_argument('-epochs', type=int)
     argument_parser.add_argument('-lr', type=float)
     argument_parser.add_argument('-dataset_dir')
-    argument_parser.add_argument('-save_dir')
     argument_parser.add_argument('-image_size', default=224, type=int)
     argument_parser.add_argument('-device', default='cuda')
     argument_parser.add_argument('-save_dir', default='checkpoints')
