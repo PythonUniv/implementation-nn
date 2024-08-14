@@ -12,7 +12,7 @@ from preprocess import SegFormerPreprocessor
 
 
 def download(dir: str | None = None):
-    directory = os.path.join(dir or os.path.dirname(__file__), 'dataset')
+    directory = dir or os.path.join(os.path.dirname(__file__), 'dataset')
     snapshot_download('Chris1/cityscapes_segmentation', local_dir=directory, repo_type='dataset')
         
         
