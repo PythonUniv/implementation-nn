@@ -18,7 +18,7 @@ class SegFormerConfig:
     stage_num_blocks: tuple[int] = (4, 6, 2)
     stage_drop_paths: tuple[tuple[float]] = ((0, 0.05, 0.1, 0.15), (0.2, 0.25, 0.3, 0.35, 0.4, 0.45), (0.5, 0.55))
     decoder_out_channels: int = 128
-    num_classes: int = 30
+    num_classes: int = 50
     
     
 class LayerNorm2d(nn.Module):
