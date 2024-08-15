@@ -30,5 +30,5 @@ if __name__ == '__main__':
     train_parquets = parquets[:num_train_parquets]
     val_parquets = parquets[num_train_parquets:]
     train(
-        segformer, train_parquets, val_parquets, arguments.batch_size, arguments.image_size,
+        segformer, train_parquets, val_parquets, arguments.batch_size,
         arguments.lr, arguments.epochs, arguments.device, arguments.save_dir)
