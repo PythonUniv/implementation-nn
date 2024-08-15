@@ -60,4 +60,5 @@ if __name__ == '__main__':
     config = SegFormerConfig()
     model = SegFormer(config)
     train(
-        model, ['validation-00000-of-00003.parquet', 'validation-00001-of-00003.parquet'], ['validation-00002-of-00003.parquet'], batch_size=16)
+        model, ['validation-00000-of-00003.parquet', 'validation-00001-of-00003.parquet'],
+        ['validation-00002-of-00003.parquet'], batch_size=16)
