@@ -25,7 +25,7 @@ if __name__ == '__main__':
     if arguments.download:
         download(arguments.dataset_dir)
         
-    parquets = [os.path.join(arguments.dataset_dir, 'data', name) for name in os.listdir(arguments.dataset_dir)]
+    parquets = [os.path.join(arguments.dataset_dir, 'data', name) for name in os.listdir(os.path.join(arguments.dataset_dir, 'data'))]
     num_train_parquets = int(0.8 * len(parquets))
     train_parquets = parquets[:num_train_parquets]
     val_parquets = parquets[num_train_parquets:]
