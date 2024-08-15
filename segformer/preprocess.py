@@ -25,5 +25,6 @@ class SegFormerPreprocessor:
         if to_torch:
             image = torch.tensor(image)
             image = image.permute(2, 0, 1)
-            mask = torch.tensor(mask)
+            if mask is not None:
+                mask = torch.tensor(mask)
         return image, mask
