@@ -9,11 +9,12 @@ from dataset import get_data_loader
 
 def train(
     model: SegFormer, train_parquets: list[str], val_parquets: list[str], batch_size: int,
-    image_size: int = 224, lr: float = 5e-4, epochs: int = 1, device: torch.DeviceObjType = 'cuda',
-    save_dir: str | None = None
+    lr: float = 5e-4, epochs: int = 1, device: torch.DeviceObjType = 'cuda', save_dir: str | None = None
 ) -> SegFormer:
-    train_loader = get_data_loader(train_parquets, batch_size, image_size, image_size, train=True)
-    val_loader = get_data_loader(train_parquets, batch_size, image_size, image_size, train=False)
+    train_loader = get_data_loader(
+        train_parquets, batch_size, model.config.image_size, model.config.image_size, train=True)
+    val_loader = get_data_loader(
+        val_parquets, batch_size, model.config.image_size, model.config.image_size, train=False)
     
     optimizer = torch.optim.AdamW(model.parameters(), lr)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
@@ -50,7 +51,7 @@ def train(
     directory = Path(os.path.join(save_dir or os.path.dirname(__file__), 'checkpoints'))
     directory.mkdir(exist_ok=True)
     path = os.path.join(directory, 'model.pt')
-    torch.save(model.state_dict(), path)
+    torch.save({'state_dict': model.state_dict(), 'config': model.config}, path)
     print('Saved.')
     return model
 
@@ -59,5 +60,4 @@ if __name__ == '__main__':
     config = SegFormerConfig()
     model = SegFormer(config)
     train(
-        model, ['validation-00000-of-00003.parquet', 'validation-00001-of-00003.parquet'],
-        ['validation-00002-of-00003.parquet'], batch_size=32)
+        model, ['validation-00000-of-00003.parquet', 'validation-00001-of-00003.parquet'], ['validation-00002-of-00003.parquet'], batch_size=16)

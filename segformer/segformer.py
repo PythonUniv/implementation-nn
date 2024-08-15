@@ -8,6 +8,7 @@ from torchvision.ops import StochasticDepth
 @dataclass
 class SegFormerConfig:
     in_channels: int = 3
+    image_size: int = 224
     stage_channels_out: tuple[int] = (48, 96, 160)
     stage_mlp_hidden: tuple[int] = (4 * 48, 4 * 96, 4 * 160)
     stage_attn_head_dim: tuple[int] = (16, 16, 16)
