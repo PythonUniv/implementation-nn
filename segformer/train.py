@@ -48,7 +48,7 @@ def train(
                 loss = loss_fn(out.permute(0, 2, 3, 1).view(-1, model.config.num_classes), ground_truths.contiguous().view(-1))
                 tqdm_loader.set_description(f'Loss: {loss.item():.3f}')
         
-    directory = Path(os.path.join(save_dir or os.path.dirname(__file__), 'checkpoints'))
+    directory = Path(save_dir or os.path.join(os.path.dirname(__file__), 'checkpoints'))
     directory.mkdir(exist_ok=True)
     path = os.path.join(directory, 'model.pt')
     torch.save({'state_dict': model.state_dict(), 'config': model.config}, path)
