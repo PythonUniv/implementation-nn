@@ -1,11 +1,12 @@
 import os
 from io import BytesIO
+import math
 import numpy as np
 from PIL import Image
 import pandas as pd
 import torch
-from torch.utils.data import Dataset, DataLoader
 from pyarrow.parquet import ParquetFile
+from joblib import Parallel, delayed
 from huggingface_hub import snapshot_download
 
 from preprocess import SegFormerPreprocessor
@@ -16,46 +17,64 @@ def download(dir: str | None = None):
     snapshot_download('Chris1/cityscapes_segmentation', local_dir=directory, repo_type='dataset')
         
         
-class SegmentationDataset(Dataset):
-    def __init__(self, parquets: list[str], height: int, width: int, augmentation: bool = True):
+class SegmentationDataLoader:
+    def __init__(
+        self, parquets: list[str], height: int, width: int,
+        batch_size: int, augmentation: bool = True, processes: int | None = None
+    ):
         self.parquets = parquets
-        
-        self.len = sum(ParquetFile(parquet).metadata.num_rows for parquet in parquets)
-        self.current_parquet_idx = None
-        self.current_parquet = None
-        self.current_parquet_rows: int | None = None
-        self.idx = 0
-        self.preprocessor = SegFormerPreprocessor(height, width)
+        self.height = height
+        self.width = width
         self.augmentation = augmentation
-        self.next_parquet()
+        self.idx = None
+        self.iterator = None
+        self.batch_size = batch_size        
+        self.processes = processes or max(1, os.cpu_count() // 2)
+        self.preprocessor = SegFormerPreprocessor(height, width)
+        self.len = sum(math.ceil(ParquetFile(parquet).metadata.num_rows / batch_size) for parquet in parquets)
+        self.iters = 0
+        
+    def __next__(self) -> tuple[torch.Tensor, torch.Tensor]:
+        if self.iterator is None:
+            self.load_iterator()
             
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
-        if self.idx == self.current_parquet_rows:
-            self.next_parquet()
-
-        image = np.array(Image.open(BytesIO(self.current_parquet.iloc[self.idx]['image']['bytes'])))
-        ground_truth = np.array(Image.open(BytesIO(self.current_parquet.iloc[self.idx]['semantic_segmentation']['bytes'])))[:, :, 0]
-        self.idx += 1
-        image, ground_truth = self.preprocessor(image, ground_truth, inference=(not self.augmentation), to_torch=True)
-        return image, ground_truth
+        if self.iters == self.len:
+            raise StopIteration
         
-    def __len__(self):
-        return self.len
+        try:
+            batch: pd.DataFrame = next(self.iterator).to_pandas()
+        except StopIteration:
+            self.load_iterator()
+            batch: pd.DataFrame = next(self.iterator).to_pandas()
+            
+        preprocessed_images = torch.empty(self.batch_size, 3, self.height, self.width)
+        preprocessed_ground_truths = torch.empty(self.batch_size, self.height, self.width, dtype=torch.long)
+        preprocessed = Parallel(self.processes, backend='threading')([self.preprocess(data) for idx, data in batch.iterrows()])
+        for idx, (preprocessed_image, preprocessed_ground_truth) in enumerate(preprocessed):
+            preprocessed_images[idx] = preprocessed_image
+            preprocessed_ground_truths[idx] = preprocessed_ground_truth
+        self.iters += 1 
+        return preprocessed_images, preprocessed_ground_truths
     
-    def next_parquet(self):
-        next_idx = (self.current_parquet_idx + 1) % len(self.parquets) if self.current_parquet_idx is not None else 0
-        self.current_parquet = pd.read_parquet(self.parquets[next_idx])
-        self.current_parquet_rows = len(self.current_parquet)
-        self.idx = 0
-
+    def __iter__(self):
+        self.iters = 0
+        return self
+                
+    def load_iterator(self):
+        self.idx = (self.idx + 1) % len(self.parquets) if self.idx is not None else 0
+        parquet_path = self.parquets[self.idx]
+        self.iterator = ParquetFile(parquet_path).iter_batches(self.batch_size)
         
-def get_data_loader(parquets: list[str], batch_size: int, height: int, width: int, train: bool = True, dir: str | None = None) -> DataLoader:
-    directory = dir or os.path.join(os.path.dirname(__file__), 'dataset', 'data')
-    parquets = [os.path.join(directory, name) for name in parquets]
-    dataset = SegmentationDataset(parquets, height, width, train)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
-    return loader
+    def __len__(self) -> int:
+        return self.len
 
-
+    @delayed
+    def preprocess(self, data: pd.Series) -> tuple[torch.Tensor, torch.Tensor]:
+        image = np.array(Image.open(BytesIO(data['image']['bytes'])))
+        segmentation_mask = np.array(Image.open(BytesIO(data['semantic_segmentation']['bytes'])))[:, :, 0]
+        preprocessed_image, preprocessed_ground_truth = self.preprocessor(image, segmentation_mask, inference=(not self.augmentation))
+        return preprocessed_image, preprocessed_ground_truth
+        
+    
 if __name__ == '__main__':
     download()

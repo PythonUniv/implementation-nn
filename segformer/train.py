@@ -4,17 +4,17 @@ import tqdm
 from pathlib import Path
 
 from segformer import SegFormer, SegFormerConfig
-from dataset import get_data_loader
+from dataset import SegmentationDataLoader
 
 
 def train(
     model: SegFormer, train_parquets: list[str], val_parquets: list[str], batch_size: int,
     lr: float = 5e-4, epochs: int = 1, device: torch.DeviceObjType = 'cuda', save_dir: str | None = None
 ) -> SegFormer:
-    train_loader = get_data_loader(
-        train_parquets, batch_size, model.config.image_size, model.config.image_size, train=True)
-    val_loader = get_data_loader(
-        val_parquets, batch_size, model.config.image_size, model.config.image_size, train=False)
+    train_loader = SegmentationDataLoader(
+        train_parquets, model.config.image_size, model.config.image_size, batch_size=batch_size, augmentation=True)
+    val_loader = SegmentationDataLoader(
+        val_parquets, model.config.image_size, model.config.image_size, batch_size=batch_size, augmentation=False)
     
     optimizer = torch.optim.AdamW(model.parameters(), lr)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
@@ -61,4 +61,4 @@ if __name__ == '__main__':
     model = SegFormer(config)
     train(
         model, ['validation-00000-of-00003.parquet', 'validation-00001-of-00003.parquet'],
-        ['validation-00002-of-00003.parquet'], batch_size=16)
+        ['validation-00002-of-00003.parquet'], batch_size=16, device='cuda')
