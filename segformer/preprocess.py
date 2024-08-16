@@ -6,8 +6,8 @@ import albumentations as A
 class SegFormerPreprocessor:
     def __init__(self, height: int, width: int):
         self.train_preprocessor = A.Compose(
-            [A.ToFloat(), A.Resize(height, width), A.Normalize(), A.HorizontalFlip()])
-        self.inference_preprocessor = A.Compose([A.ToFloat(), A.Resize(height, width), A.Normalize()])
+            [A.Resize(height, width), A.Normalize(), A.HorizontalFlip()])
+        self.inference_preprocessor = A.Compose([A.Resize(height, width), A.Normalize()])
         
     def __call__(
         self, image: np.ndarray, mask: np.ndarray | None = None,
