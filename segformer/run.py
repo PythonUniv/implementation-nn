@@ -18,7 +18,7 @@ if __name__ == '__main__':
     
     arguments = argument_parser.parse_args()
     
-    config = SegFormerConfig()
+    config = SegFormerConfig(num_classes=24)
     segformer = SegFormer(config)
     
     if arguments.neptune_api_key is not None:
