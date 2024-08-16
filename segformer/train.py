@@ -2,19 +2,24 @@ import os
 import torch
 import tqdm
 from pathlib import Path
+from torch.utils.data import random_split, DataLoader
 
 from segformer import SegFormer, SegFormerConfig
-from dataset import SegmentationDataLoader
+from dataset import SegmentationDataset
 
 
 def train(
-    model: SegFormer, train_parquets: list[str], val_parquets: list[str], batch_size: int,
-    lr: float = 5e-4, epochs: int = 1, device: torch.DeviceObjType = 'cuda', save_dir: str | None = None
+    model: SegFormer, dataset_dir: str, batch_size: int, image_size: int = 224,
+    lr: float = 5e-4, epochs: int = 1, device: torch.DeviceObjType = 'cuda', save_dir: str | None = None, processes: int | None = None,
+    neptune_run=None
 ) -> SegFormer:
-    train_loader = SegmentationDataLoader(
-        train_parquets, model.config.image_size, model.config.image_size, batch_size=batch_size, augmentation=True)
-    val_loader = SegmentationDataLoader(
-        val_parquets, model.config.image_size, model.config.image_size, batch_size=batch_size, augmentation=False)
+    original_images_dir = os.path.join(dataset_dir, 'original_images')
+    label_images_dir = os.path.join(dataset_dir, 'label_images_semantic')
+    segmentation_dataset = SegmentationDataset(original_images_dir, label_images_dir, image_size)
+    train_dataset, val_dataset = random_split(segmentation_dataset, [0.8, 0.2])
+    processes = processes or max(1, os.cpu_count() // 2)
+    train_loader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=processes)
+    val_loader = DataLoader(val_dataset, batch_size, shuffle=True, num_workers=processes)
     
     optimizer = torch.optim.AdamW(model.parameters(), lr)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
@@ -37,6 +42,10 @@ def train(
             scheduler.step()
             
             tqdm_loader.set_description(f'Loss: {loss.item():.3f}')
+            
+            if neptune_run is not None:
+                neptune_run['train/loss'].append(loss.item())
+                neptune_run['lr'].append(optimizer.param_groups[0]['lr'])
 
         tqdm_loader = tqdm.tqdm(val_loader)
         model.eval()
@@ -47,6 +56,9 @@ def train(
                 ground_truths = ground_truths[:, ::4, ::4]
                 loss = loss_fn(out.permute(0, 2, 3, 1).view(-1, model.config.num_classes), ground_truths.contiguous().view(-1))
                 tqdm_loader.set_description(f'Loss: {loss.item():.3f}')
+                
+                if neptune_run is not None:
+                    neptune_run['val/loss'].append(loss.item())
         
     directory = Path(save_dir or os.path.join(os.path.dirname(__file__), 'checkpoints'))
     directory.mkdir(exist_ok=True)
@@ -57,8 +69,16 @@ def train(
 
 
 if __name__ == '__main__':
+    import neptune
+    import dotenv
+    
+    env_values = dotenv.dotenv_values()
+    neptune_api_key = env_values['NEPTUNE_API_KEY']
+    
     config = SegFormerConfig()
     model = SegFormer(config)
-    train(
-        model, ['validation-00000-of-00003.parquet', 'validation-00001-of-00003.parquet'],
-        ['validation-00002-of-00003.parquet'], batch_size=16, device='cuda')
+    
+    neptune_run = neptune.init_run(project='fireml/SegFormer-train', api_token=neptune_api_key)
+    
+    train(model, r'C:\Users\Ноутбук\Desktop\enviroment\segformer\dataset', 16, neptune_run=neptune_run)
+    print('Trained.')
