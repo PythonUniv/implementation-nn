@@ -5,7 +5,7 @@ from pathlib import Path
 from torch.utils.data import random_split, DataLoader
 
 from segformer import SegFormer, SegFormerConfig
-from dataset import SegmentationDataset
+from dataset import SegmentationDatasetGPUEfficient
 
 
 def train(
@@ -15,7 +15,7 @@ def train(
 ) -> SegFormer:
     original_images_dir = os.path.join(dataset_dir, 'original_images')
     label_images_dir = os.path.join(dataset_dir, 'label_images_semantic')
-    segmentation_dataset = SegmentationDataset(original_images_dir, label_images_dir, image_size)
+    segmentation_dataset = SegmentationDatasetGPUEfficient(original_images_dir, label_images_dir, image_size)
     train_dataset, val_dataset = random_split(segmentation_dataset, [0.8, 0.2])
     processes = processes or max(1, os.cpu_count() // 2)
     train_loader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=processes)
